@@ -638,7 +638,10 @@ below.</p>
 <span id="cb21-7"><a aria-hidden="true" href="#cb21-7" tabindex="-1"></a>    RequestHeader<span class="st">    set X-Script-Name /radicale</span></span>
 <span id="cb21-8"><a aria-hidden="true" href="#cb21-8" tabindex="-1"></a>    RequestHeader<span class="st">    set X-Forwarded-Port "%{SERVER_PORT}s"</span></span>
 <span id="cb21-9"><a aria-hidden="true" href="#cb21-9" tabindex="-1"></a>    RequestHeader<span class="st">    set X-Forwarded-Proto expr=%{REQUEST_SCHEME}</span></span>
-<span id="cb21-10"><a aria-hidden="true" href="#cb21-10" tabindex="-1"></a><span class="fu">&lt;/Location&gt;</span></span></code></pre></div>
+<span id="cb21-10"><a aria-hidden="true" href="#cb21-10" tabindex="-1"></a>    <span class="fu">&lt;IfVersion</span><span class="at"> </span><span class="fu">&gt;</span><span class="er">= 2.4.40&gt;</span></span>
+<span id="cb21-11"><a aria-hidden="true" href="#cb21-11" tabindex="-1"></a>    Proxy100Continue Off</span>
+<span id="cb21-12"><a aria-hidden="true" href="#cb21-12" tabindex="-1"></a>    <span class="fu">&lt;/IfVersion&gt;</span></span>
+<span id="cb21-13"><a aria-hidden="true" href="#cb21-13" tabindex="-1"></a><span class="fu">&lt;/Location&gt;</span></span></code></pre></div>
 <p>Example <strong>Apache .htaccess</strong> configuration:</p>
 <div class="sourceCode" id="cb22"><pre class="sourceCode apache"><code class="sourceCode apache"><span id="cb22-1"><a aria-hidden="true" href="#cb22-1" tabindex="-1"></a>DirectoryIndex<span class="st"> disabled</span></span>
 <span id="cb22-2"><a aria-hidden="true" href="#cb22-2" tabindex="-1"></a><span class="ex">RewriteEngine</span><span class="ch"> </span><span class="kw">On</span></span>
@@ -707,9 +710,12 @@ and disables HTTP authentication.</p>
 <span id="cb26-9"><a aria-hidden="true" href="#cb26-9" tabindex="-1"></a></span>
 <span id="cb26-10"><a aria-hidden="true" href="#cb26-10" tabindex="-1"></a>    ProxyPass<span class="st">        http://localhost:5232/ retry=0</span></span>
 <span id="cb26-11"><a aria-hidden="true" href="#cb26-11" tabindex="-1"></a>    ProxyPassReverse<span class="st"> http://localhost:5232/</span></span>
-<span id="cb26-12"><a aria-hidden="true" href="#cb26-12" tabindex="-1"></a>    RequestHeader<span class="st">    set X-Script-Name /radicale</span></span>
-<span id="cb26-13"><a aria-hidden="true" href="#cb26-13" tabindex="-1"></a>    RequestHeader<span class="st">    set X-Remote-User expr=%{REMOTE_USER}</span></span>
-<span id="cb26-14"><a aria-hidden="true" href="#cb26-14" tabindex="-1"></a><span class="fu">&lt;/Location&gt;</span></span></code></pre></div>
+<span id="cb26-12"><a aria-hidden="true" href="#cb26-12" tabindex="-1"></a>    <span class="fu">&lt;IfVersion</span><span class="at"> </span><span class="fu">&gt;</span><span class="er">= 2.4.40&gt;</span></span>
+<span id="cb26-13"><a aria-hidden="true" href="#cb26-13" tabindex="-1"></a>    Proxy100Continue Off</span>
+<span id="cb26-14"><a aria-hidden="true" href="#cb26-14" tabindex="-1"></a>    <span class="fu">&lt;/IfVersion&gt;</span></span>
+<span id="cb26-15"><a aria-hidden="true" href="#cb26-15" tabindex="-1"></a>    RequestHeader<span class="st">    set X-Script-Name /radicale</span></span>
+<span id="cb26-16"><a aria-hidden="true" href="#cb26-16" tabindex="-1"></a>    RequestHeader<span class="st">    set X-Remote-User expr=%{REMOTE_USER}</span></span>
+<span id="cb26-17"><a aria-hidden="true" href="#cb26-17" tabindex="-1"></a><span class="fu">&lt;/Location&gt;</span></span></code></pre></div>
 <p>Example <strong>Apache .htaccess</strong> configuration:</p>
 <div class="sourceCode" id="cb27"><pre class="sourceCode apache"><code class="sourceCode apache"><span id="cb27-1"><a aria-hidden="true" href="#cb27-1" tabindex="-1"></a>DirectoryIndex<span class="st"> disabled</span></span>
 <span id="cb27-2"><a aria-hidden="true" href="#cb27-2" tabindex="-1"></a><span class="ex">RewriteEngine</span><span class="ch"> </span><span class="kw">On</span></span>
@@ -1270,18 +1276,23 @@ access to the socket.</p>
 <p>Port of via network exposed dovecot socket</p>
 <p>Default: <code>12345</code></p>
 </section>
-<section class="level5" id="dovecot_rip_x_remote_addr">
-<h5>dovecot_rip_x_remote_addr <a class="headerlink" href="#dovecot_rip_x_remote_addr">&para;</a></h5>
+<section class="level5" id="remote_ip_source">
+<h5>remote_ip_source <a class="headerlink" href="#remote_ip_source">&para;</a></h5>
 <p><em>(&gt;= 3.5.6)</em></p>
-<p>Use the <code>X-Remote-Addr</code> value for the remote IP (rip)
-parameter in the dovecot authentication protocol.</p>
-<p>If set, Radicale must be running behind a proxy that you control and
-that sets/overwrites the <code>X-Remote-Addr</code> header (doesn't pass
-it) so that the value passed to dovecot is reliable. For example, for
-nginx, add</p>
+<p>For authentication mechanisms that are made aware of the remote IP
+(such as dovecot via the <code>rip=</code> auth protocol parameter),
+determine the source to use. Currently, valid values are</p>
+<p><code>REMOTE_ADDR</code> (default) : Use the REMOTE_ADDR environment
+variable that captures the remote address of the socket connection.</p>
+<p><code>X-Remote-Addr</code> : Use the <code>X-Remote-Addr</code> HTTP
+header value.</p>
+<p>In the case of <code>X-Remote-Addr</code>, Radicale must be running
+be running behind a proxy that you control and that sets/overwrites the
+<code>X-Remote-Addr</code> header (doesn't pass it) so that the value
+passed to dovecot is reliable. For example, for nginx, add</p>
 <pre><code>    proxy_set_header  X-Remote-Addr $remote_addr;</code></pre>
 <p>to the configuration sample.</p>
-<p>Default: <code>False</code></p>
+<p>Default: <code>REMOTE_ADDR</code></p>
 </section>
 <section class="level5" id="imap_host">
 <h5>imap_host <a class="headerlink" href="#imap_host">&para;</a></h5>
