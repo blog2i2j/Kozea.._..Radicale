@@ -135,13 +135,12 @@ export class CollectionsScene {
     }
 
     /**
-     * @param {any[]} collections
+     * @param {Collection[]} collections
      * @param {import("../api/sharing.js").Share[]} shares
-     * @param {boolean} clear_error
      */
-    _show_collections(collections, shares, clear_error) {
+    _sort_collections(collections, shares) {
         collections.sort((a, b) => {
-            const getShare = (col) => (shares || []).find(
+            const getShare = (/** @type {Collection} */ col) => (shares || []).find(
                 s => (s.ShareType === "map") &&
                     decodeURIComponent(s.PathOrToken || "").replace(/\/+$/, "") === decodeURIComponent(col.href || "").replace(/\/+$/, ""));
 
@@ -156,145 +155,173 @@ export class CollectionsScene {
 
             return extract_title(a).localeCompare(extract_title(b));
         });
+    }
 
-        /** @type {HTMLElement} */ let navBar = get_element(document, "#logoutview");
-        let heightOfNavBar = navBar.offsetHeight + "px";
-        this._html_scene.style.marginTop = heightOfNavBar;
-        this._html_scene.style.height = "calc(100vh - " + heightOfNavBar + ")";
-
-        if (clear_error) {
-            this._errorHandler.clearError();
-        }
-
-        // Clear old nodes
+    /**
+     * Clears all collection nodes from the DOM and resets the nodes array.
+     */
+    _clear_collections_display() {
         this._nodes.forEach(function (node) {
             if (node.parentNode) {
                 node.parentNode.removeChild(node);
             }
         });
         this._nodes = [];
+    }
 
-        collections.forEach((/** @type {Collection} */ collection) => {
-            /** @type {HTMLElement} */ let node = /** @type {HTMLElement} */(this._template.cloneNode(true));
-            node.classList.remove("hidden");
-            /** @type {HTMLElement} */ let title_form = get_element(node, "[data-name=title]");
-            /** @type {HTMLElement} */ let description_form = get_element(node, "[data-name=description]");
-            /** @type {HTMLElement} */ let contentcount_form = get_element(node, "[data-name=contentcount]");
-            /** @type {HTMLInputElement} */ let url_form = /** @type {HTMLInputElement} */ (get_element(node, "[data-name=url]"));
-            /** @type {HTMLElement} */ let color_form = get_element(node, "[data-name=color]");
-            /** @type {HTMLElement} */ let delete_btn = get_element(node, "[data-name=delete]");
-            /** @type {HTMLElement} */ let edit_btn = get_element(node, "[data-name=edit]");
-            /** @type {HTMLElement} */ let share_btn = get_element(node, "[data-name=share]");
-            /** @type {HTMLAnchorElement} */ let download_btn = /** @type {HTMLAnchorElement} */ (get_element(node, "[data-name=download]"));
-            /** @type {HTMLButtonElement} */ let copy_btn = /** @type {HTMLButtonElement} */ (get_element(node, "[data-name=copy-url]"));
-            if (collection.color) {
-                color_form.style.background = collection.color;
-            }
-            let possible_types = [CollectionType.ADDRESSBOOK, CollectionType.WEBCAL];
-            [CollectionType.CALENDAR, ""].forEach(function (e) {
-                [CollectionType.union(e, CollectionType.JOURNAL), e].forEach(function (e) {
-                    [CollectionType.union(e, CollectionType.TASKS), e].forEach(function (e) {
-                        if (e) {
-                            possible_types.push(e);
-                        }
-                    });
-                });
-            });
-            possible_types.forEach(function (e) {
-                if (e !== collection.type) {
-                    get_element(node, "[data-name=" + e + "]").classList.add("hidden");
-                }
-            });
+    /**
+     * Sets up the scene layout by adjusting margins based on the navbar height.
+     */
+    _setup_layout() {
+        /** @type {HTMLElement} */ let navBar = get_element(document, "#logoutview");
+        let heightOfNavBar = navBar.offsetHeight + "px";
+        this._html_scene.style.marginTop = heightOfNavBar;
+        this._html_scene.style.height = "calc(100vh - " + heightOfNavBar + ")";
+    }
 
-            let share_option = get_element(node, "[data-name=shareoption]");
-            let can_share = collection.has_permission(Permission.SHARE_MAP) || collection.has_permission(Permission.SHARE_TOKEN);
-            if (share_option) {
-                if (can_share) {
-                    share_option.classList.remove("hidden");
-                } else {
-                    share_option.classList.add("hidden");
-                }
-            }
-
-            let share_info = get_element(node, "[data-name=shared-by]");
-            let transformed_from = get_element(node, "[data-name=transformed-from]");
-            let share = (shares || []).find(
-                s => (s.ShareType === "map") &&
-                    decodeURIComponent(s.PathOrToken || "").replace(/\/+$/, "") === decodeURIComponent(collection.href || "").replace(/\/+$/, ""));
-            if (share) {
-                if (share.Owner !== this._user) {
-                    share_info.classList.remove("hidden");
-                    get_element(node, "[data-name=shared-by-owner]").textContent = share.Owner;
-                } else {
-                    transformed_from.classList.remove("hidden");
-                }
-                let share_option = get_element(node, "[data-name=shareoption]");
-                if (share_option) {
-                    share_option.classList.add("hidden");
-                    share_option.removeAttribute("data-name");
-                }
-                delete_btn.classList.add("hidden");
-                if (!/w/i.test(share.Permissions || "")) {
-                    edit_btn.classList.add("hidden");
-                } else {
-                    edit_btn.classList.remove("hidden");
-                }
-            }
-            title_form.textContent = collection.displayname || collection.href;
-            if (title_form.textContent.length > 30) {
-                title_form.classList.add("smalltext");
-            }
-            description_form.textContent = collection.description;
-            if (description_form.textContent.length > 150) {
-                description_form.classList.add("smalltext");
-            }
-            if (collection.type != CollectionType.WEBCAL) {
-                let contentcount_form_txt = (collection.contentcount > 0 ? Number(collection.contentcount).toLocaleString() : "No") + " item" + (collection.contentcount == 1 ? "" : "s") + " in collection";
-                if (collection.contentcount > 0) {
-                    contentcount_form_txt += " (" + bytesToHumanReadable(collection.size) + ")";
-                }
-                contentcount_form.textContent = contentcount_form_txt;
-            }
-            let href = completeHref(collection.href);
-            new UrlTextHandler(url_form, copy_btn).setHref(href);
-            download_btn.href = href;
-            download_btn.onclick = (event) => {
-                event.preventDefault();
-                let auth = get_auth_header(this._user, this._password);
-                let headers = auth ? {
-                    'Authorization': auth
-                } : undefined;
-                fetch(href, { headers: headers }).then(function (response) {
-                    if (response.ok) {
-                        return response.blob();
+    /**
+     * @param {Collection} collection
+     * @param {import("../api/sharing.js").Share[]} shares
+     */
+    _render_collection(collection, shares) {
+        /** @type {HTMLElement} */ let node = /** @type {HTMLElement} */(this._template.cloneNode(true));
+        node.classList.remove("hidden");
+        /** @type {HTMLElement} */ let title_form = get_element(node, "[data-name=title]");
+        /** @type {HTMLElement} */ let description_form = get_element(node, "[data-name=description]");
+        /** @type {HTMLElement} */ let contentcount_form = get_element(node, "[data-name=contentcount]");
+        /** @type {HTMLInputElement} */ let url_form = /** @type {HTMLInputElement} */ (get_element(node, "[data-name=url]"));
+        /** @type {HTMLElement} */ let color_form = get_element(node, "[data-name=color]");
+        /** @type {HTMLElement} */ let delete_btn = get_element(node, "[data-name=delete]");
+        /** @type {HTMLElement} */ let edit_btn = get_element(node, "[data-name=edit]");
+        /** @type {HTMLElement} */ let share_btn = get_element(node, "[data-name=share]");
+        /** @type {HTMLAnchorElement} */ let download_btn = /** @type {HTMLAnchorElement} */ (get_element(node, "[data-name=download]"));
+        /** @type {HTMLButtonElement} */ let copy_btn = /** @type {HTMLButtonElement} */ (get_element(node, "[data-name=copy-url]"));
+        if (collection.color) {
+            color_form.style.background = collection.color;
+        }
+        let possible_types = [CollectionType.ADDRESSBOOK, CollectionType.WEBCAL];
+        [CollectionType.CALENDAR, ""].forEach(function (e) {
+            [CollectionType.union(e, CollectionType.JOURNAL), e].forEach(function (e) {
+                [CollectionType.union(e, CollectionType.TASKS), e].forEach(function (e) {
+                    if (e) {
+                        possible_types.push(e);
                     }
-                    throw new Error("Download failed: " + response.statusText);
-                }).then(function (blob) {
-                    let url = window.URL.createObjectURL(blob);
-                    let a = document.createElement("a");
-                    a.href = url;
-                    a.download = (collection.displayname || collection.href).replace(/\/+$/, "") + (collection.type === CollectionType.ADDRESSBOOK ? ".vcf" : ".ics");
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
-                })["catch"]((error) => {
-                    this._errorHandler.setError(error.message);
                 });
-            };
-            if (collection.type == CollectionType.WEBCAL) {
-                if (download_btn.parentElement) {
-                    download_btn.parentElement.classList.add("hidden");
+            });
+        });
+        possible_types.forEach(function (e) {
+            if (e !== collection.type) {
+                get_element(node, "[data-name=" + e + "]").classList.add("hidden");
+            }
+        });
+
+        let share_option = get_element(node, "[data-name=shareoption]");
+        let can_share = collection.has_permission(Permission.SHARE_MAP) || collection.has_permission(Permission.SHARE_TOKEN);
+        if (share_option) {
+            if (can_share) {
+                share_option.classList.remove("hidden");
+            } else {
+                share_option.classList.add("hidden");
+            }
+        }
+
+        let share_info = get_element(node, "[data-name=shared-by]");
+        let transformed_from = get_element(node, "[data-name=transformed-from]");
+        let share = (shares || []).find(
+            s => (s.ShareType === "map") &&
+                decodeURIComponent(s.PathOrToken || "").replace(/\/+$/, "") === decodeURIComponent(collection.href || "").replace(/\/+$/, ""));
+        if (share) {
+            if (share.Owner !== this._user) {
+                share_info.classList.remove("hidden");
+                get_element(node, "[data-name=shared-by-owner]").textContent = share.Owner;
+            } else {
+                transformed_from.classList.remove("hidden");
+            }
+            let share_option = get_element(node, "[data-name=shareoption]");
+            if (share_option) {
+                share_option.classList.add("hidden");
+                share_option.removeAttribute("data-name");
+            }
+            delete_btn.classList.add("hidden");
+            if (!/w/i.test(share.Permissions || "")) {
+                edit_btn.classList.add("hidden");
+            } else {
+                edit_btn.classList.remove("hidden");
+            }
+        }
+        title_form.textContent = collection.displayname || collection.href;
+        if (title_form.textContent.length > 30) {
+            title_form.classList.add("smalltext");
+        }
+        description_form.textContent = collection.description;
+        if (description_form.textContent.length > 150) {
+            description_form.classList.add("smalltext");
+        }
+        if (collection.type != CollectionType.WEBCAL) {
+            let contentcount_form_txt = (collection.contentcount > 0 ? Number(collection.contentcount).toLocaleString() : "No") + " item" + (collection.contentcount == 1 ? "" : "s") + " in collection";
+            if (collection.contentcount > 0) {
+                contentcount_form_txt += " (" + bytesToHumanReadable(collection.size) + ")";
+            }
+            contentcount_form.textContent = contentcount_form_txt;
+        }
+        let href = completeHref(collection.href);
+        new UrlTextHandler(url_form, copy_btn).setHref(href);
+        download_btn.href = href;
+        download_btn.onclick = (event) => {
+            event.preventDefault();
+            let auth = get_auth_header(this._user, this._password);
+            let headers = auth ? {
+                'Authorization': auth
+            } : undefined;
+            fetch(href, { headers: headers }).then(function (response) {
+                if (response.ok) {
+                    return response.blob();
                 }
+                throw new Error("Download failed: " + response.statusText);
+            }).then(function (blob) {
+                let url = window.URL.createObjectURL(blob);
+                let a = document.createElement("a");
+                a.href = url;
+                a.download = (collection.displayname || collection.href).replace(/\/+$/, "") + (collection.type === CollectionType.ADDRESSBOOK ? ".vcf" : ".ics");
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            })["catch"]((error) => {
+                this._errorHandler.setError(error.message);
+            });
+        };
+        if (collection.type == CollectionType.WEBCAL) {
+            if (download_btn.parentElement) {
+                download_btn.parentElement.classList.add("hidden");
             }
-            delete_btn.onclick = () => { return this._ondelete(collection); };
-            edit_btn.onclick = () => { return this._onedit(collection); };
-            share_btn.onclick = () => { return this._onshare(collection); };
-            node.classList.remove("hidden");
-            this._nodes.push(node);
-            if (this._template.parentNode) {
-                this._template.parentNode.insertBefore(node, this._template);
-            }
+        }
+        delete_btn.onclick = () => { return this._ondelete(collection); };
+        edit_btn.onclick = () => { return this._onedit(collection); };
+        share_btn.onclick = () => { return this._onshare(collection); };
+        node.classList.remove("hidden");
+        this._nodes.push(node);
+        if (this._template.parentNode) {
+            this._template.parentNode.insertBefore(node, this._template);
+        }
+    }
+
+    /**
+     * @param {Collection[]} collections
+     * @param {import("../api/sharing.js").Share[]} shares
+     * @param {boolean} clear_error
+     */
+    _show_collections(collections, shares, clear_error) {
+        this._setup_layout();
+        if (clear_error) {
+            this._errorHandler.clearError();
+        }
+
+        this._sort_collections(collections, shares);
+        this._clear_collections_display();
+
+        collections.forEach((collection) => {
+            this._render_collection(collection, shares);
         });
     }
 
@@ -317,13 +344,7 @@ export class CollectionsScene {
         this._new_btn.onclick = null;
         this._upload_btn.onclick = null;
         this._incomingshares_btn.onclick = null;
-        // remove collection
-        this._nodes.forEach(function (node) {
-            if (node.parentNode) {
-                node.parentNode.removeChild(node);
-            }
-        });
-        this._nodes = [];
+        this._clear_collections_display();
     }
 
     release() {
