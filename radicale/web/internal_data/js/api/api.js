@@ -103,11 +103,6 @@ export function get_collections(user, password, collection, callback) {
                         collections.push(parsedCollection);
                     }
                 }
-                collections.sort(function (a, b) {
-                    /** @type {string} */ let ca = a.displayname || a.href;
-                    /** @type {string} */ let cb = b.displayname || b.href;
-                    return ca.localeCompare(cb);
-                });
                 callback(collections, null);
             } else {
                 callback(null, "No valid XML received");

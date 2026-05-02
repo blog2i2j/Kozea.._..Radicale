@@ -23,6 +23,7 @@ import { delete_collection } from "../api/api.js";
 import { get_auth_header } from "../api/common.js";
 import { Collection, CollectionType, Permission } from "../models/collection.js";
 import { collectionsCache } from "../utils/collections_cache.js";
+import { extract_title } from "../utils/collection_utils.js";
 import { ErrorHandler } from "../utils/error.js";
 import { bytesToHumanReadable, completeHref, get_element, get_element_by_id } from "../utils/misc.js";
 import { UrlTextHandler } from "../utils/url_text.js";
@@ -139,6 +140,23 @@ export class CollectionsScene {
      * @param {boolean} clear_error
      */
     _show_collections(collections, shares, clear_error) {
+        collections.sort((a, b) => {
+            const getShare = (col) => (shares || []).find(
+                s => (s.ShareType === "map") &&
+                    decodeURIComponent(s.PathOrToken || "").replace(/\/+$/, "") === decodeURIComponent(col.href || "").replace(/\/+$/, ""));
+
+            const shareA = getShare(a);
+            const shareB = getShare(b);
+
+            const ownedA = !shareA || shareA.Owner === this._user;
+            const ownedB = !shareB || shareB.Owner === this._user;
+
+            if (ownedA && !ownedB) return -1;
+            if (!ownedA && ownedB) return 1;
+
+            return extract_title(a).localeCompare(extract_title(b));
+        });
+
         /** @type {HTMLElement} */ let navBar = get_element(document, "#logoutview");
         let heightOfNavBar = navBar.offsetHeight + "px";
         this._html_scene.style.marginTop = heightOfNavBar;

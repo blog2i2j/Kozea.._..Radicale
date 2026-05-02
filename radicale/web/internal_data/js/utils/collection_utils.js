@@ -44,7 +44,7 @@ export function extractUsernameFromPrincipalCollection(principal_collection) {
 export function extract_title(collection) {
     if (collection.displayname && collection.displayname.length > 0) {
         return collection.displayname;
-    } else if (collection.type = CollectionType.PRINCIPAL) {
+    } else if (collection.type === CollectionType.PRINCIPAL) {
         return extractUsernameFromPrincipalCollection(collection)
     } else
         return decodeURIComponent(collection.href);
