@@ -22,8 +22,8 @@
 import { delete_collection } from "../api/api.js";
 import { get_auth_header } from "../api/common.js";
 import { Collection, CollectionType, Permission } from "../models/collection.js";
-import { collectionsCache } from "../utils/collections_cache.js";
 import { extract_title } from "../utils/collection_utils.js";
+import { collectionsCache } from "../utils/collections_cache.js";
 import { ErrorHandler } from "../utils/error.js";
 import { bytesToHumanReadable, completeHref, get_element, get_element_by_id } from "../utils/misc.js";
 import { UrlTextHandler } from "../utils/url_text.js";
@@ -243,10 +243,14 @@ export class CollectionsScene {
                 share_option.removeAttribute("data-name");
             }
             delete_btn.classList.add("hidden");
-            if (!/w/i.test(share.Permissions || "")) {
-                edit_btn.classList.add("hidden");
-            } else {
+
+            let has_write_permission = /w/i.test(share.Permissions || "");
+            let has_write_properties = /P/i.test(share.Permissions || "") || collection.has_permission(Permission.WRITE_PROPERTIES);
+
+            if (has_write_permission || has_write_properties) {
                 edit_btn.classList.remove("hidden");
+            } else {
+                edit_btn.classList.add("hidden");
             }
         }
         title_form.textContent = collection.displayname || collection.href;

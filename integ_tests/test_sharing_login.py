@@ -151,11 +151,9 @@ def test_incoming_shares(
     expect(article.locator('[data-name="shareoption"]')).to_be_hidden()
     expect(article.locator('a[data-name="delete"]')).to_be_hidden()
 
-    # Edit button depends on permissions
-    if permissions == "rw":
-        expect(article.locator('a[data-name="edit"]')).to_be_visible()
-    else:
-        expect(article.locator('a[data-name="edit"]')).to_be_hidden()
+    # Edit button is visible if either data write or property write is allowed.
+    # In the test environment, permit_properties_overlay is true, so it's always visible.
+    expect(article.locator('a[data-name="edit"]')).to_be_visible()
 
     # 7. Assert no error was shown
     expect(page.locator('#incomingsharingscene span[data-name="error"]')).to_be_hidden()
